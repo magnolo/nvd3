@@ -50,7 +50,7 @@ nv.models.sunburst = function() {
             var availableWidth = nv.utils.availableWidth(width, container, margin);
             var availableHeight = nv.utils.availableHeight(height, container, margin);
             var radius = Math.min(availableWidth, availableHeight) / 2;
-            var path;
+            var box, path, text;
 
             nv.utils.initSVG(container);
 
@@ -60,7 +60,7 @@ nv.models.sunburst = function() {
 
             var g = wrapEnter.selectAll('nv-sunburst');
 
-            chart.update = function() { 
+            chart.update = function() {
                 if ( duration === 0 ) {
                     container.call(chart);
                 } else {
@@ -86,7 +86,8 @@ nv.models.sunburst = function() {
             node = node || data;
             rootNode = data[0];
             partition.value(modes[mode] || modes["count"]);
-            path = g.data(partition.nodes).enter()
+            box = g.data(partition.nodes).enter().append('g');
+            path = box
                 .append("path")
                 .attr("d", arc)
                 .style("fill", function (d) {
@@ -106,7 +107,24 @@ nv.models.sunburst = function() {
                     node = d;
                     path.transition()
                         .duration(duration)
-                        .attrTween("d", arcTweenZoom(d));
+                        .attrTween("d", arcTweenZoom(d))
+                        .each("end", function(e, i) {
+                          // check if the animated element's data e lies within the visible angle span given in d
+                          if (e.x >= d.x && e.x < (d.x + d.dx)) {
+                            // get a selection of the associated text element
+                            var arcText = d3.select(this.parentNode).select("text");
+                            // fade in the text element and recalculate positions
+                            arcText.transition().duration(750)
+                              .attr("opacity", 1)
+                              .attr('x', function(d){return d.x;})
+                              .attr("transform", function(d) {
+                                var multiLine = (d.name || "").split(" ").length > 1,
+                                  orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
+                                  radius = orientation + (multiLine ? -.5 : 0);
+                                return "rotate("+r+")translate("+(y(d.y)+c)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+                              })
+                          }
+                      });
                 })
                 .each(stash)
                 .on("dblclick", function(d) {
@@ -135,8 +153,39 @@ nv.models.sunburst = function() {
                         data: d
                     });
                 });
+            text = box.append('text')
+              .attr('x', function(d){return d.x;})
+              .attr('transform', function(d){
+                var multiLine = (d.name || "").split(" ").length > 1,
+                  orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
+                  radius = orientation + (multiLine ? -.5 : 0);
+                return "rotate("+r+")translate("+(y(d.y)+c)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+              })
+              .call(wrapText);
 
-
+            function wrapText(text, width){
+              text.each(function(){
+                var text = d3.select(this),
+                  words = text.text().split(/\s+/).reverse(),
+                  word,
+                  line= [],
+                  lineNumber = 0,
+                  lineHeight = 1.1,
+                  y = text.attr('y'),
+                  dy = parseFloat(text.attr('dy')),
+                  tspan = text.text(null).append('tspan').attr('x', 0).attr('y', y).attr('dy', dy + "em");
+                  while(word = words.pop()){
+                    line.push(word);
+                    tspan.text(line.join(" "));
+                    if(tspan.node().getComputedTextLength() > width){
+                      line.pop();
+                      tspan.text(line.join(" "));
+                      line = [word];
+                      tspan = text.append("tspan").attr('x',0).attr('y',y).attr('dy', ++lineNumber * lineHeight + dy +"em").text(word);
+                    }
+                  }
+              })
+            }
 
             // Setup for switching data: stash the old values for transition.
             function stash(d) {
