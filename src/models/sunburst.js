@@ -101,10 +101,13 @@ nv.models.sunburst = function() {
                         return color(d.name);
                     }
                 })
+
                 .style("stroke", "#FFF")
+                .style("stroke-width", "2")
                 .on("click", function(d) {
                     if (prevNode !== node && node !== d) prevNode = node;
                     node = d;
+                    text.transition().attr("opacity", 0);
                     path.transition()
                         .duration(duration)
                         .attrTween("d", arcTweenZoom(d))
@@ -118,10 +121,20 @@ nv.models.sunburst = function() {
                               .attr("opacity", 1)
                               .attr('x', function(d){return d.x;})
                               .attr("transform", function(d) {
-                                var multiLine = (d.name || "").split(" ").length > 1,
-                                  orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
-                                  radius = orientation + (multiLine ? -.5 : 0);
-                                return "rotate("+radius+")translate("+(y(d.y)+5)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+                                if(typeof d.parent != "undefined"){
+                                  var multiLine = (d.name || "").split(" ").length > 1,
+                                    orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
+                                    radius = orientation + (multiLine ? -.5 : 0);
+                                  return "rotate("+radius+")translate("+(y(d.y)+5)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+                                }
+                              })
+                              .attr("text-anchor", function (d) {
+                                if(typeof d.parent != "undefined"){
+                                return x(d.x + d.dx / 2) > Math.PI ? "end" : "start";
+                              }
+                              else{
+                                return 'middle';
+                              }
                               })
                           }
                       });
@@ -155,13 +168,28 @@ nv.models.sunburst = function() {
                 });
             text = box.append('text')
               .attr('x', function(d){return d.x;})
-              .attr('transform', function(d){
-                var multiLine = (d.name || "").split(" ").length > 1,
-                  orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
-                  radius = orientation + (multiLine ? -.5 : 0);
-                return "rotate("+radius+")translate("+(y(d.y)+5)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+                .style("pointer-events", 'none')
+              .attr('fill', function(d){return colorCheck(d3.rgb(d.color)) < 125 ? "#eee" : "#000";})
+              .attr("text-anchor", function (d) {
+                if(typeof d.parent != "undefined"){
+                return x(d.x + d.dx / 2) > Math.PI ? "end" : "start";
+              }
+              else{
+                return 'middle';
+              }
               })
-              .call(wrapText);
+              .attr('transform', function(d){
+                if(typeof d.parent != "undefined"){
+
+                  var multiLine = (d.name || "").split(" ").length > 1,
+                    orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
+                    radius = orientation + (multiLine ? -.5 : 0);
+                  return "rotate("+radius+")translate("+(y(d.y)+5)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+                }
+
+              })
+              .text(function(d){ return d.name})
+              .call(wrapText, 80);
 
             function wrapText(text, width){
               text.each(function(){
@@ -172,8 +200,8 @@ nv.models.sunburst = function() {
                   lineNumber = 0,
                   lineHeight = 1.1,
                   y = text.attr('y'),
-                  dy = parseFloat(text.attr('dy')),
-                  tspan = text.text(null).append('tspan').attr('x', 0).attr('y', y).attr('dy', dy + "em");
+
+                  tspan = text.text(null).append('tspan').attr('x', 0).attr('y', y);
                   while(word = words.pop()){
                     line.push(word);
                     tspan.text(line.join(" "));
@@ -181,12 +209,23 @@ nv.models.sunburst = function() {
                       line.pop();
                       tspan.text(line.join(" "));
                       line = [word];
-                      tspan = text.append("tspan").attr('x',0).attr('y',y).attr('dy', ++lineNumber * lineHeight + dy +"em").text(word);
+                      lineNumber++;
+                      tspan = text.append("tspan").attr('x',0).attr('y',y).attr("dy", lineHeight + "em").text(word);
                     }
                   }
+                    console.log(text.data()[0].parent);
+                    if(typeof text.data()[0].parent == "undefined"){
+                        text.attr('dy', '0.35em');
+                    }
+                  else{
+                      text.attr('dy', '-'+ (lineNumber / 2) + 'em');
+                  }
+
               })
             }
-
+            function colorCheck(color) {
+              return .299 * color.r + .587 * color.g + .114 * color.b;
+            }
             // Setup for switching data: stash the old values for transition.
             function stash(d) {
                 d.x0 = d.x;
