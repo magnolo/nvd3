@@ -121,7 +121,7 @@ nv.models.sunburst = function() {
                                 var multiLine = (d.name || "").split(" ").length > 1,
                                   orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
                                   radius = orientation + (multiLine ? -.5 : 0);
-                                return "rotate("+r+")translate("+(y(d.y)+c)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+                                return "rotate("+radius+")translate("+(y(d.y)+5)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
                               })
                           }
                       });
@@ -159,7 +159,7 @@ nv.models.sunburst = function() {
                 var multiLine = (d.name || "").split(" ").length > 1,
                   orientation = 180 * x(d.x + d.dx / 2) / Math.PI - 90,
                   radius = orientation + (multiLine ? -.5 : 0);
-                return "rotate("+r+")translate("+(y(d.y)+c)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
+                return "rotate("+radius+")translate("+(y(d.y)+5)+")rotate("+ (orientation > 90 ? -180 : 0)+")";
               })
               .call(wrapText);
 
